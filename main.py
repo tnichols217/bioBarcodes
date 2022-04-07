@@ -16,15 +16,37 @@ import cairosvg
 from PyPDF2 import PdfFileMerger
 import time
 
-PXPMM = 3.7795275590551185
+# filename
 
-MAKE_PNG = False
+filename = sys.argv[1]
+folder = filename.split('.')[0]
+
+# constants
+
+PXPMM = 3.7795275590551185
 
 UUIDS = {}
 
-# filename
-filename = sys.argv[1]
-folder = filename.split('.')[0]
+factory = qrcode.image.svg.SvgPathImage
+wid = 80
+hei = 50
+e = str(Path("./export/" + folder + "/").resolve()) + "/"
+inv = str(Path("./inv").resolve()) + "/"
+q = ".qr"
+b = ".bar"
+s = ".svg"
+fin = ".fin"
+u = ["ID", "Name", "Category", "Variation"]
+
+a4wid = 210
+a4hei = 297
+widd = 2
+heii = 5
+widdd = 80
+heiii = 50
+
+offsetx = (a4wid - widd * widdd) / 2
+offsety = (a4hei - heii * heiii) / 2
 
 # parse csv
 
@@ -42,50 +64,75 @@ with open(filename) as f:
 
 # sort csv items
 
-factory = qrcode.image.svg.SvgPathImage
-wid = 80
-hei = 50
-e = str(Path("./export/" + folder + "/").resolve()) + "/"
 if not os.path.exists(e):
     os.makedirs(e)
-q = ".qr"
-b = ".bar"
-s = ".svg"
-fin = ".fin"
+
+if not os.path.exists(inv):
+    os.makedirs(inv)
+
+# clean svg
+
+def cleanSVG(svgFile, removeText=False, clearMeta=True):
+    tree = xml.dom.minidom.parse(svgFile).toprettyxml()
+    with open(svgFile, "w") as f:
+        f.write(tree)
+
+    with open(svgFile, 'r') as fr:
+        l = fr.readlines()
+        with open(svgFile, 'w') as fw:
+            [fw.write(i) if ("<text" not in i or not removeText) and ("<!" not in i or not clearMeta) and ("<?" not in i or not clearMeta) and i.strip().startswith("<") else "" for i in l]
+
+def parseSVGtoGtag(svgFile, x, y, s, removeText=False):
+    cleanSVG(svgFile, removeText=removeText)
+    with open(svgFile, 'r') as fr:
+        l = fr.read()
+        with open(svgFile, 'w') as fw:
+            fw.write("<g transform=\"translate(" + str(x * PXPMM) + "," + str(y * PXPMM) + ") scale(" + str(s) + ")\">" + l + "</g>")
+
+
+
+def addText(dwg, text, x, y, wraplength):
+    [dwg.add(dwg.text(text[i:i+wraplength], (str(x) + "mm", str(y + 0.4 * i) + "mm"), font_size=20, font_family="Fira Code")) for i in range(0, len(text), wraplength)]
+
+def combinePdfs(pdfs, out):
+    # find and merge pdfs
+
+    merger = PdfFileMerger()
+
+    for pdf in pdfs:
+        merger.append(str(pdf))
+
+    merger.write(out)
+    merger.close()
+
+    # delete pdf parts
+
+    [i.unlink() for i in pdfs]    
+
+# barcode generator
 
 def gen_full(i):
+    # parse csv row into oo object dictionary
     oo = {}
-    u = ["ID", "Name", "Category", "Variation"]
     for j in u:
         oo[j] = i[k[j]]
+    
+    # generate uuid, with first three digits being base 10 for the barcode
+
     t = ("000" + str(int("".join([j if j != "-" else "" for j in str(uuid.uuid4())]), 16)))[-39:]
     t = str(t[:3]) + ("00" + str(hex(int(t[3:])).split("x")[-1]))[-30:]
     oo["UUID"] = t
 
     UUIDS[t] = oo["ID"]
 
-
     name = oo["ID"] + "-" + oo["UUID"]
 
-
     # generate qr
-
 
     img = qrcode.make(json.dumps(oo), image_factory=factory)
     img.save(e + name + q + s)
 
-    tree = xml.dom.minidom.parse(e + name + q + s).toprettyxml()
-    with open(e + name + q + s, "w") as f:
-        f.write(tree)
-
-    with open(e + name + q + s, 'r') as fr:
-        l = fr.readlines()
-        with open(e + name + q + s, 'w') as fw:
-            fw.write("<g transform=\"translate(" + str(53 * PXPMM) + ",0) scale(0.4)\">")
-            [fw.write(i) if "<!" not in i and "<?" not in i and i.strip().startswith("<") else "" for i in l]
-            fw.write("</g>")
-
-
+    parseSVGtoGtag(e + name + q + s, 53, 0, 0.4)
 
     # generate bar
 
@@ -93,31 +140,16 @@ def gen_full(i):
     bar = EAN13(oo["Barcode"])
     bar.save(e + name + b)
 
-
-    tree = xml.dom.minidom.parse(e + name + b + s).toprettyxml()
-    with open(e + name + b + s, "w") as f:
-        f.write(tree)
-
-    with open(e + name + b + s, 'r') as fr:
-        l = fr.readlines()
-        with open(e + name + b + s, 'w') as fw:
-            fw.write("<g transform=\"translate(" + str(41 * PXPMM) + "," + str(30 * PXPMM) + ") scale(0.9)\">")
-            [fw.write(i) if "<text" not in i and "<!" not in i and "<?" not in i and i.strip().startswith("<") else "" for i in l]
-            fw.write("</g>")
-
-    
+    parseSVGtoGtag(e + name + b + s, 41, 31.5, 0.9, removeText=True)
 
     # generate full image
 
     dwg = svgwrite.Drawing(e + name + fin + s, size=(str(wid) + "mm", str(hei) + "mm"), profile='full')
     dwg.add(dwg.g())
-
-    size = 20
-
-    [dwg.add(dwg.text(oo["Name"][i:i+15], ("5mm", str(7.5 + 0.4 * i) + "mm"), font_size=size, font_family="Fira Code")) for i in range(0, len(oo["Name"]), 15)]
-    [dwg.add(dwg.text(oo["Variation"][i:i+15], ("5mm", str(22.5 + 0.4 * i) + "mm"), font_size=size, font_family="Fira Code")) for i in range(0, len(oo["Variation"]), 15)]
-    [dwg.add(dwg.text(oo["ID"][i:i+11], ("5mm", str(32.5 + 0.4 * i) + "mm"), font_size=size, font_family="Fira Code")) for i in range(0, len(oo["UUID"]), 11)]
-    [dwg.add(dwg.text(oo["UUID"][i:i+11], ("5mm", str(37.5 + 0.4 * i) + "mm"), font_size=size, font_family="Fira Code")) for i in range(0, len(oo["UUID"]), 11)]
+    addText(dwg, oo["Name"], 5, 7.5, 15)
+    addText(dwg, oo["Variation"], 5, 22.5, 15)
+    addText(dwg, oo["ID"], 5, 32.5, 11)
+    addText(dwg, oo["UUID"], 5, 37.5, 11)
     dwg.save()
 
 
@@ -129,47 +161,23 @@ def gen_full(i):
                     fw.write(l.replace("<g />", fb.read() + fq.read()))
 
 
-    tree = xml.dom.minidom.parse(e + name + fin + s).toprettyxml()
-    with open(e + name + fin + s, "w") as f:
-        f.write(tree)
-
-    # convert to png
-    if MAKE_PNG:
-        with Image(filename=e + name + fin + s, width=wid, height=hei) as img:
-            with img.convert('png') as output_img:
-                output_img.save(filename=e + name + fin + ".png")
-
-    # format svg to be ready to be included in pdf
-    with open(e + name + fin + s, 'r') as fr:
-        l = fr.readlines()
-        with open(e + name + fin + s, 'w') as fw:
-            [fw.write(i) if "<!" not in i and "<?" not in i and i.strip().startswith("<") else "" for i in l]
-
     Path(e + name + q + s).unlink()
     Path(e + name + b + s).unlink()
 
+
+# generate svg according to csv
 
 for i in c:
     for _ in range(int(i[k["Quantity"]])):
         gen_full(i)
 
-
-
-
 ff = [str(i) for i in Path(e).glob("*.svg")]
 
-a4wid = 210
-a4hei = 297
-widd = 2
-heii = 5
-widdd = 80
-heiii = 50
-
-offsetx = (a4wid - widd * widdd) / 2
-offsety = (a4hei - heii * heiii) / 2
+# split list of svgs into chunks by page then column
 
 ff = [[ff[j:j+heii] for j in range(i, i + widd * heii, heii)] for i in range(0, len(ff), widd * heii)]
 
+# start making each svg into pdf by page
 
 for i in range(len(ff)):
     dwg2 = svgwrite.Drawing(e + str(i) + s, size=(str(a4wid) + "mm", str(a4hei) + "mm"), profile="full")
@@ -180,43 +188,28 @@ for i in range(len(ff)):
 
     for j in range(len(ff[i])):
         for k in range(len(ff[i][j])):
-            ss += "<g transform=\"translate(" + str((offsetx + j * widdd) * PXPMM) + "," + str((offsety + k * heiii) * PXPMM) + ")\">"
+            parseSVGtoGtag(str(ff[i][j][k]), offsetx + j * widdd, offsety + k * heiii, 1)
             with open(str(ff[i][j][k])) as f:
                 ss += f.read()
-            ss += "</g>"
-
 
     with open(e + str(i) + s, 'r') as fr:
         l = fr.read()
         with open(e + str(i) + s, 'w') as fw:
             fw.write(l.replace("<g />", ss))
 
-    tree = xml.dom.minidom.parse(e + str(i) + s).toprettyxml()
-    with open(e + str(i) + s, "w") as f:
-        f.write(tree)
-
+    cleanSVG(e + str(i) + s, clearMeta=False)
 
     cairosvg.svg2pdf(url=e + str(i) + s, write_to=e + str(i) + ".pdf")
 
+# delete svgs
 
 [i.unlink() for i in Path(e).glob("*.svg")]
 
+# merge pdfs
 
-pdfs = [i for i in Path(e).glob("*.pdf")]
-merger = PdfFileMerger()
+mergePdfs([i for i in Path(e).glob("*.pdf")], e + "final.pdf")
 
-for pdf in pdfs:
-    merger.append(str(pdf))
+# write out UUID -> ID table
 
-merger.write(e + "final.pdf")
-merger.close()
-
-[i.unlink() for i in pdfs]
-
-
-e = str(Path("./inv").resolve()) + "/"
-if not os.path.exists(e):
-    os.makedirs(e)
-
-with open(e + str(time.time()) + ".json", "w") as f:
+with open(inv + str(time.time()) + ".json", "w") as f:
     f.write(json.dumps(UUIDS))
