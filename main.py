@@ -214,5 +214,9 @@ merger.close()
 [i.unlink() for i in pdfs]
 
 
-with open("inv/" + str(time.time()) + ".json", "w") as f:
+e = Path("./inv").resolve() + "/"
+if not os.path.exists(e):
+    os.makedirs(e)
+
+with open(e + str(time.time()) + ".json", "w") as f:
     f.write(json.dumps(UUIDS))
