@@ -14,11 +14,13 @@ import xml.dom.minidom
 import xml.etree.ElementTree
 import cairosvg
 from PyPDF2 import PdfFileMerger
-
+import time
 
 PXPMM = 3.7795275590551185
 
 MAKE_PNG = False
+
+UUIDS = {}
 
 # filename
 filename = sys.argv[1]
@@ -59,6 +61,8 @@ def gen_full(i):
     t = ("000" + str(int("".join([j if j != "-" else "" for j in str(uuid.uuid4())]), 16)))[-39:]
     t = str(t[:3]) + ("00" + str(hex(int(t[3:])).split("x")[-1]))[-30:]
     oo["UUID"] = t
+
+    UUIDS[t] = oo["ID"]
 
 
     name = oo["ID"] + "-" + oo["UUID"]
@@ -141,16 +145,8 @@ def gen_full(i):
         with open(e + name + fin + s, 'w') as fw:
             [fw.write(i) if "<!" not in i and "<?" not in i and i.strip().startswith("<") else "" for i in l]
 
-
-
     Path(e + name + q + s).unlink()
     Path(e + name + b + s).unlink()
-
-    # Path(e + name + fin + s).unlink()
-
-
-
-
 
 
 for i in c:
@@ -174,9 +170,6 @@ offsety = (a4hei - heii * heiii) / 2
 
 ff = [[ff[j:j+heii] for j in range(i, i + widd * heii, heii)] for i in range(0, len(ff), widd * heii)]
 
-print(len(ff))
-print(len(ff[0]))
-print(len(ff[0][0]))
 
 for i in range(len(ff)):
     dwg2 = svgwrite.Drawing(e + str(i) + s, size=(str(a4wid) + "mm", str(a4hei) + "mm"), profile="full")
@@ -219,3 +212,7 @@ merger.write(e + "final.pdf")
 merger.close()
 
 [i.unlink() for i in pdfs]
+
+
+with open("inv/" + str(time.time()) + ".json", "w") as f:
+    f.write(json.dumps(UUIDS))
