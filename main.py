@@ -13,12 +13,16 @@ import svgutils
 import xml.dom.minidom
 import xml.etree.ElementTree
 
+# filename
+filename = sys.argv[1]
+folder = filename.split('.')[0]
+
 # parse csv
 
 c = []
 k = {}
 
-with open("Biology Inventory - Inventory.csv") as f:
+with open(filename) as f:
     c = [i for i in csv.reader(f)]
     k = {}
     for i in range(len(c[0])):
@@ -32,7 +36,9 @@ with open("Biology Inventory - Inventory.csv") as f:
 factory = qrcode.image.svg.SvgPathImage
 wid = 800
 hei = 500
-e = str(Path("./export/").resolve()) + "/"
+e = str(Path("./export/" + folder + "/").resolve()) + "/"
+if not os.path.exists(e):
+    os.makedirs(e)
 q = ".qr"
 b = ".bar"
 s = ".svg"
