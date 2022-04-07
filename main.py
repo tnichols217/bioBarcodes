@@ -214,7 +214,7 @@ merger.close()
 [i.unlink() for i in pdfs]
 
 
-e = Path("./inv").resolve() + "/"
+e = str(Path("./inv").resolve()) + "/"
 if not os.path.exists(e):
     os.makedirs(e)
 
