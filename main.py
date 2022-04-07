@@ -12,6 +12,13 @@ from wand.image import Image
 import svgutils
 import xml.dom.minidom
 import xml.etree.ElementTree
+import cairosvg
+from PyPDF2 import PdfFileMerger
+
+
+PXPMM = 3.7795275590551185
+
+MAKE_PNG = False
 
 # filename
 filename = sys.argv[1]
@@ -34,8 +41,8 @@ with open(filename) as f:
 # sort csv items
 
 factory = qrcode.image.svg.SvgPathImage
-wid = 800
-hei = 500
+wid = 80
+hei = 50
 e = str(Path("./export/" + folder + "/").resolve()) + "/"
 if not os.path.exists(e):
     os.makedirs(e)
@@ -43,7 +50,6 @@ q = ".qr"
 b = ".bar"
 s = ".svg"
 fin = ".fin"
-scl = "<svg transform=\"scale(5)\""
 
 def gen_full(i):
     oo = {}
@@ -71,7 +77,7 @@ def gen_full(i):
     with open(e + name + q + s, 'r') as fr:
         l = fr.readlines()
         with open(e + name + q + s, 'w') as fw:
-            fw.write("<g transform=\"translate(530, 0) scale(1.1)\">")
+            fw.write("<g transform=\"translate(" + str(53 * PXPMM) + ",0) scale(0.4)\">")
             [fw.write(i) if "<!" not in i and "<?" not in i and i.strip().startswith("<") else "" for i in l]
             fw.write("</g>")
 
@@ -91,7 +97,7 @@ def gen_full(i):
     with open(e + name + b + s, 'r') as fr:
         l = fr.readlines()
         with open(e + name + b + s, 'w') as fw:
-            fw.write("<g transform=\"translate(360, 270) scale(2.75)\">")
+            fw.write("<g transform=\"translate(" + str(41 * PXPMM) + "," + str(30 * PXPMM) + ") scale(0.9)\">")
             [fw.write(i) if "<text" not in i and "<!" not in i and "<?" not in i and i.strip().startswith("<") else "" for i in l]
             fw.write("</g>")
 
@@ -99,16 +105,15 @@ def gen_full(i):
 
     # generate full image
 
-    dwg = svgwrite.Drawing(e + name + fin + s, size=(wid, hei), profile='full')
+    dwg = svgwrite.Drawing(e + name + fin + s, size=(str(wid) + "mm", str(hei) + "mm"), profile='full')
     dwg.add(dwg.g())
 
-    size = 50
-    width = 500
+    size = 20
 
-    [dwg.add(dwg.text(oo["Name"][i:i+15], (50, 75 + 4 * i), font_size=size, font_family="Fira Code")) for i in range(0, len(oo["Name"]), 15)]
-    [dwg.add(dwg.text(oo["Variation"][i:i+15], (50, 225 + 4 * i), font_size=size, font_family="Fira Code")) for i in range(0, len(oo["Variation"]), 15)]
-    [dwg.add(dwg.text(oo["ID"][i:i+11], (50, 325 + 4 * i), font_size=size, font_family="Fira Code")) for i in range(0, len(oo["UUID"]), 11)]
-    [dwg.add(dwg.text(oo["UUID"][i:i+11], (50, 375 + 4 * i), font_size=size, font_family="Fira Code")) for i in range(0, len(oo["UUID"]), 11)]
+    [dwg.add(dwg.text(oo["Name"][i:i+15], ("5mm", str(7.5 + 0.4 * i) + "mm"), font_size=size, font_family="Fira Code")) for i in range(0, len(oo["Name"]), 15)]
+    [dwg.add(dwg.text(oo["Variation"][i:i+15], ("5mm", str(22.5 + 0.4 * i) + "mm"), font_size=size, font_family="Fira Code")) for i in range(0, len(oo["Variation"]), 15)]
+    [dwg.add(dwg.text(oo["ID"][i:i+11], ("5mm", str(32.5 + 0.4 * i) + "mm"), font_size=size, font_family="Fira Code")) for i in range(0, len(oo["UUID"]), 11)]
+    [dwg.add(dwg.text(oo["UUID"][i:i+11], ("5mm", str(37.5 + 0.4 * i) + "mm"), font_size=size, font_family="Fira Code")) for i in range(0, len(oo["UUID"]), 11)]
     dwg.save()
 
 
@@ -124,10 +129,28 @@ def gen_full(i):
     with open(e + name + fin + s, "w") as f:
         f.write(tree)
 
+    # convert to png
+    if MAKE_PNG:
+        with Image(filename=e + name + fin + s, width=wid, height=hei) as img:
+            with img.convert('png') as output_img:
+                output_img.save(filename=e + name + fin + ".png")
 
-    with Image(filename=e + name + fin + s, width=wid, height=hei) as img:
-        with img.convert('png') as output_img:
-            output_img.save(filename=e + name + fin + ".png")
+    # format svg to be ready to be included in pdf
+    with open(e + name + fin + s, 'r') as fr:
+        l = fr.readlines()
+        with open(e + name + fin + s, 'w') as fw:
+            [fw.write(i) if "<!" not in i and "<?" not in i and i.strip().startswith("<") else "" for i in l]
+
+
+
+    Path(e + name + q + s).unlink()
+    Path(e + name + b + s).unlink()
+
+    # Path(e + name + fin + s).unlink()
+
+
+
+
 
 
 for i in c:
@@ -135,5 +158,64 @@ for i in c:
         gen_full(i)
 
 
-for p in Path(e).glob("*" + s):
-    p.unlink()
+
+
+ff = [str(i) for i in Path(e).glob("*.svg")]
+
+a4wid = 210
+a4hei = 297
+widd = 2
+heii = 5
+widdd = 80
+heiii = 50
+
+offsetx = (a4wid - widd * widdd) / 2
+offsety = (a4hei - heii * heiii) / 2
+
+ff = [[ff[j:j+heii] for j in range(i, i + widd * heii, heii)] for i in range(0, len(ff), widd * heii)]
+
+print(len(ff))
+print(len(ff[0]))
+print(len(ff[0][0]))
+
+for i in range(len(ff)):
+    dwg2 = svgwrite.Drawing(e + str(i) + s, size=(str(a4wid) + "mm", str(a4hei) + "mm"), profile="full")
+    dwg2.add(dwg2.g())
+    dwg2.save()
+    
+    ss = ""
+
+    for j in range(len(ff[i])):
+        for k in range(len(ff[i][j])):
+            ss += "<g transform=\"translate(" + str((offsetx + j * widdd) * PXPMM) + "," + str((offsety + k * heiii) * PXPMM) + ")\">"
+            with open(str(ff[i][j][k])) as f:
+                ss += f.read()
+            ss += "</g>"
+
+
+    with open(e + str(i) + s, 'r') as fr:
+        l = fr.read()
+        with open(e + str(i) + s, 'w') as fw:
+            fw.write(l.replace("<g />", ss))
+
+    tree = xml.dom.minidom.parse(e + str(i) + s).toprettyxml()
+    with open(e + str(i) + s, "w") as f:
+        f.write(tree)
+
+
+    cairosvg.svg2pdf(url=e + str(i) + s, write_to=e + str(i) + ".pdf")
+
+
+[i.unlink() for i in Path(e).glob("*.svg")]
+
+
+pdfs = [i for i in Path(e).glob("*.pdf")]
+merger = PdfFileMerger()
+
+for pdf in pdfs:
+    merger.append(str(pdf))
+
+merger.write(e + "final.pdf")
+merger.close()
+
+[i.unlink() for i in pdfs]
