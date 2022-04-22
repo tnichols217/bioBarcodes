@@ -19,6 +19,7 @@ import time
 # filename
 
 filename = sys.argv[1]
+ledger = sys.argv[2]
 folder = filename.split('.')[0]
 
 # constants
@@ -30,8 +31,9 @@ UUIDS = {}
 factory = qrcode.image.svg.SvgPathImage
 wid = 80
 hei = 50
-e = str(Path("./export/" + folder + "/").resolve()) + "/"
+e = str(Path("./export/" + folder + "/").resolve()) + "_" + str(time.time()) + "/"
 inv = str(Path("./inv").resolve()) + "/"
+trsx = "trsx"
 q = ".qr"
 b = ".bar"
 s = ".svg"
@@ -62,6 +64,50 @@ with open(filename) as f:
 
     c = c[1:]
 
+# parse current inventory
+
+c2 = []
+k2 = {}
+
+with open(ledger) as f:
+    c2 = [i for i in csv.reader(f)]
+    k2 = {}
+    for i in range(len(c2[0])):
+        k2[c2[0][i]] = i
+        k2[i] = c2[0][i]
+
+    c2 = c2[1:]
+
+if not os.path.exists(inv + trsx):
+    with open(inv + trsx, "w") as f:
+        f.write("FF")
+
+lastTrsx = ""
+outTrsx = ""
+
+with open(inv + trsx, "r") as f:
+    outTrsx = f.read()
+    lastTrsx = int(outTrsx, 16)
+
+cc2 = []
+
+for i in c2:
+    if int(i[k2["Trsx ID"]], 16) > lastTrsx:
+        outTrsx = i[k2["Trsx ID"]]
+        print(i)
+        cc2.append(i)
+
+with open(inv + trsx, "w") as f:
+    f.write(outTrsx)
+
+val2 = {}
+
+for i in cc2:
+    if i[k2["ID"]] not in val2:
+        val2[i[k2["ID"]]] = 0
+    
+    val2[i[k2["ID"]]] += int(i[k2["Change in quantity"]])
+
 # sort csv items
 
 if not os.path.exists(e):
@@ -69,6 +115,12 @@ if not os.path.exists(e):
 
 if not os.path.exists(inv):
     os.makedirs(inv)
+
+for i in c:
+    if i[k["ID"]] in val2:
+        i[k["Quantity"]] = val2[i[k["ID"]]]
+    else:
+        i[k["Quantity"]] = 0
 
 # clean svg
 
@@ -105,7 +157,7 @@ def combinePdfs(pdfs, out):
     merger.write(out)
     merger.close()
 
-    # delete pdf parts
+    # delete pdf parts 
 
     [i.unlink() for i in pdfs]    
 
@@ -207,7 +259,7 @@ for i in range(len(ff)):
 
 # merge pdfs
 
-mergePdfs([i for i in Path(e).glob("*.pdf")], e + "final.pdf")
+combinePdfs([i for i in Path(e).glob("*.pdf")], e + "final.pdf")
 
 # write out UUID -> ID table
 
