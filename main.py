@@ -105,8 +105,10 @@ val2 = {}
 for i in cc2:
     if i[k2["ID"]] not in val2:
         val2[i[k2["ID"]]] = 0
+
+    q = int(i[k2["Change in quantity"]])
     
-    val2[i[k2["ID"]]] += int(i[k2["Change in quantity"]])
+    val2[i[k2["ID"]]] += q if q > 0 else 0
 
 # sort csv items
 
