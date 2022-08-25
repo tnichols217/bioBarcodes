@@ -14,7 +14,7 @@
           python310Packages.pypdf2
           python310Packages.qrcode
           python310Packages.python-barcode
-          python310Packages.Wand
+          python310Packages.svgwrite
         ];
         buildInputs = [ ];
       };
