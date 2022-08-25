@@ -2,3 +2,4 @@
 export/
 inv/
 .direnv
+__pycache__
