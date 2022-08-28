@@ -19,7 +19,7 @@ def generateStickers(UUIDFILE, inventoryCsv, inventoryKey, inventory, TAGWIDTH, 
     return uuids, generatedBarcodes
 
 # start making each svg into pdf by page
-def svg2pdf(generatedBarcodes, inventoryKey, EXPORT, A4WIDTH, A4HEIGHT, offsetX, offsetY, TAGWIDTH, TAGHEIGHT):
+def svg2pdf(generatedBarcodes, inventoryKey, EXPORT, A4WIDTH, A4HEIGHT, offsetX, offsetY, TAGWIDTH, TAGHEIGHT, TAGSCALE):
     outputFiles = []
     for page in range(len(generatedBarcodes)):
         pageSVG = EXPORT + str(page) + SVG
@@ -31,7 +31,7 @@ def svg2pdf(generatedBarcodes, inventoryKey, EXPORT, A4WIDTH, A4HEIGHT, offsetX,
 
         for column in range(len(generatedBarcodes[page])):
             for inventoryKey in range(len(generatedBarcodes[page][column])):
-                barcodeGen.parseSVGtoGtag(str(generatedBarcodes[page][column][inventoryKey]), offsetX + column * TAGWIDTH, offsetY + inventoryKey * TAGHEIGHT, 1)
+                barcodeGen.parseSVGtoGtag(str(generatedBarcodes[page][column][inventoryKey]), offsetX + column * TAGWIDTH * TAGSCALE, offsetY + inventoryKey * TAGHEIGHT * TAGSCALE, TAGSCALE)
                 svgFileLocation = str(generatedBarcodes[page][column][inventoryKey])
                 with open(svgFileLocation) as f:
                     ss += f.read()

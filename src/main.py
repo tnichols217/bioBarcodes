@@ -18,13 +18,14 @@ if not os.path.exists(INVENTORY):
 UUIDFILE = INVENTORY + "uuids.json"
 A4WIDTH = 210
 A4HEIGHT = 297
-HORIZONTALAMOUNT = 2
-VERTICALAMOUNT = 5
+HORIZONTALAMOUNT = 4
+VERTICALAMOUNT = 10
 TAGWIDTH = 80
 TAGHEIGHT = 50
+TAGSCALE = 0.5
 
-offsetX = (A4WIDTH - HORIZONTALAMOUNT * TAGWIDTH) / 2
-offsetY = (A4HEIGHT - VERTICALAMOUNT * TAGHEIGHT) / 2
+offsetX = (A4WIDTH - (HORIZONTALAMOUNT * TAGWIDTH * TAGSCALE)) / 2
+offsetY = (A4HEIGHT - (VERTICALAMOUNT * TAGHEIGHT * TAGSCALE)) / 2
 
 
 inventoryCsv, inventoryKey = csvParse.parseCSV(inventory, history, INVENTORY, EXPORT)
@@ -37,7 +38,7 @@ uuids, generatedBarcodes = tools.generateStickers(UUIDFILE, inventoryCsv, invent
 
 generatedBarcodes = [[generatedBarcodes[j:j+VERTICALAMOUNT] for j in range(i, i + HORIZONTALAMOUNT * VERTICALAMOUNT, VERTICALAMOUNT)] for i in range(0, len(generatedBarcodes), HORIZONTALAMOUNT * VERTICALAMOUNT)]
 
-generatedPdfPages = tools.svg2pdf(generatedBarcodes, inventoryKey, EXPORT, A4WIDTH, A4HEIGHT, offsetX, offsetY, TAGWIDTH, TAGHEIGHT)
+generatedPdfPages = tools.svg2pdf(generatedBarcodes, inventoryKey, EXPORT, A4WIDTH, A4HEIGHT, offsetX, offsetY, TAGWIDTH, TAGHEIGHT, TAGSCALE)
 
 # merge pdfs
 
